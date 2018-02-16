@@ -49,6 +49,7 @@ func main() {
 
 	if debug2 {
 		logging.SetLogger(&logging.StdoutLogger{})
+		debug = true
 	}
 
 	if useSASL && saslLogin == "" {

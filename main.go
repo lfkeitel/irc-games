@@ -37,7 +37,7 @@ func init() {
 	flag.BoolVar(&debug, "debug", false, "Enable debug output")
 	flag.BoolVar(&debug, "debug2", false, "Enable extra debug output")
 
-	flag.BoolVar(&useSASL, "sasl", false, "Use SASL authentication")
+	flag.BoolVar(&useSASL, "sasl", false, "Use SASL authentication, forces TLS")
 	flag.StringVar(&saslLogin, "sasluser", "", "SASL username if different from nick")
 	flag.StringVar(&saslPassword, "saslpass", "", "SASL password")
 
@@ -54,6 +54,10 @@ func main() {
 
 	if useSASL && saslLogin == "" {
 		saslLogin = ircNick
+	}
+
+	if useSASL {
+		ircUseTLS = true
 	}
 
 	cfg := irc.NewConfig(ircNick)

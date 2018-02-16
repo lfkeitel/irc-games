@@ -20,7 +20,7 @@ This bot will provide hours of fun and entertainment for any IRC channel.
 - `-c` - Comma separated lists of channels to join (Default: #games)
 - `-debug` - Enable debug output
 - `-debug2` - Enable extra debug output
-- `-sasl` - Use SASL authentication
+- `-sasl` - Use SASL authentication, forces TLS
 - `-sasluser USER` - Set SASL username, defaults to IRC nick (-n flag)
 - `-saslpass PASSWORD` - Set SASL password
 

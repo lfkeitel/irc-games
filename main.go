@@ -88,17 +88,28 @@ func main() {
 	})
 
 	quit := make(chan bool)
-	c.HandleFunc(irc.DISCONNECTED,
-		func(conn *irc.Conn, line *irc.Line) { close(quit) })
+	c.HandleFunc(irc.DISCONNECTED, func(conn *irc.Conn, line *irc.Line) { close(quit) })
+
+	c.HandleFunc(irc.ERROR, func(conn *irc.Conn, line *irc.Line) {
+		if !strings.HasPrefix(line.Args[0], "Closing Link") {
+			fmt.Println(line.Raw)
+		}
+	})
 
 	c.HandleFunc(irc.PRIVMSG, func(conn *irc.Conn, line *irc.Line) {
 		if debug {
 			fmt.Printf("%#v\n", line)
 		}
 
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Println(r)
+			}
+		}()
 		processMsg(conn, line)
 	})
 
+	fmt.Println("Connecting to IRC server")
 	if err := c.Connect(); err != nil {
 		fmt.Printf("Connection error: %s\n", err.Error())
 	}
@@ -111,7 +122,7 @@ func main() {
 		fmt.Println("Client disconnected from server")
 		return
 	case <-shutdown:
-		fmt.Println("Disconnecting from server")
+		fmt.Println("\nDisconnecting from server")
 		for _, channel := range chans {
 			if channel[0] == '#' {
 				fmt.Printf("Leaving %s\n", channel)
@@ -127,7 +138,7 @@ func main() {
 	case <-quit:
 		fmt.Println("Disconnected")
 	case <-time.After(5 * time.Second):
-		fmt.Println("Server took to long disconnecting")
+		fmt.Println("Server took too long disconnecting")
 	}
 }
 

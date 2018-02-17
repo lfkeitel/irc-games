@@ -15,13 +15,13 @@
     "logging",
     "state"
   ]
-  revision = "df08e838a07ad551196cb2e3696070004061c247"
+  revision = "596625034779ca2aece9737567e6845659a516a5"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = ["proxy"]
-  revision = "dc948dff8834a7fe1ca525f8d04e261c2b56e70d"
+  revision = "136a25c244d3019482a795d728110278d6ba09a4"
 
 [solve-meta]
   analyzer-name = "dep"

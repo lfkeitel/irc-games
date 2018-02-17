@@ -62,7 +62,7 @@ func (g *guessingGame) start(conn *irc.Conn, line *irc.Line) {
 	g.baseGame.active = true
 	g.number = int(rand.Int31n(99)) + 1
 	g.triesLeft = guessingTries
-	noticef(conn, line.Nick, "Guess a number between 1-100, you have %d tries", guessingTries)
+	conn.Noticef(line.Nick, "Guess a number between 1-100, you have %d tries", guessingTries)
 }
 
 func (g *guessingGame) play(conn *irc.Conn, line *irc.Line, args []string) {
@@ -84,21 +84,21 @@ func (g *guessingGame) play(conn *irc.Conn, line *irc.Line, args []string) {
 
 	if guess == g.number {
 		g.stop(conn, line)
-		noticef(conn, line.Nick, "You got it! The number was %d! You guessed the number in %d tries.", g.number, guessingTries-g.triesLeft)
+		conn.Noticef(line.Nick, "You got it! The number was %d! You guessed the number in %d tries.", g.number, guessingTries-g.triesLeft)
 		return
 	}
 
 	g.triesLeft--
 	if g.triesLeft == 0 {
-		noticef(conn, line.Nick, "You ran out of tries. The number was %d. You were %d off.", g.number, abs(guess-g.number))
+		conn.Noticef(line.Nick, "You ran out of tries. The number was %d. You were %d off.", g.number, abs(guess-g.number))
 		g.stop(conn, line)
 		return
 	}
 
 	if guess > g.number {
-		noticef(conn, line.Nick, "%d is too high, you have %d tries left", guess, g.triesLeft)
+		conn.Noticef(line.Nick, "%d is too high, you have %d tries left", guess, g.triesLeft)
 	} else if guess < g.number {
-		noticef(conn, line.Nick, "%d is too low, you have %d tries left", guess, g.triesLeft)
+		conn.Noticef(line.Nick, "%d is too low, you have %d tries left", guess, g.triesLeft)
 	}
 }
 

@@ -196,10 +196,6 @@ func parseCommandLine(line string) []string {
 	return strings.Split(line, " ")
 }
 
-func noticef(conn *irc.Conn, t, f string, a ...interface{}) {
-	conn.Notice(t, fmt.Sprintf(f, a...))
-}
-
 func startGame(conn *irc.Conn, line *irc.Line, args []string) {
 	if hasActiveGame(line.Nick) {
 		conn.Notice(line.Nick, "You're already playing a game. Please stop your current game first.")

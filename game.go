@@ -62,12 +62,12 @@ func (g *guessingGame) start(conn *irc.Conn, line *irc.Line) {
 	g.baseGame.active = true
 	g.number = int(rand.Int31n(99)) + 1
 	g.triesLeft = guessingTries
-	conn.Privmsgf(line.Nick, "Guess a number between 1-100, you have %d tries", guessingTries)
+	noticef(conn, line.Nick, "Guess a number between 1-100, you have %d tries", guessingTries)
 }
 
 func (g *guessingGame) play(conn *irc.Conn, line *irc.Line, args []string) {
 	if len(args) != 1 {
-		conn.Privmsg(line.Nick, "Just give me your guess please.")
+		conn.Notice(line.Nick, "Just give me your guess please.")
 		return
 	}
 
@@ -78,13 +78,13 @@ func (g *guessingGame) play(conn *irc.Conn, line *irc.Line, args []string) {
 
 	guess, err := strconv.Atoi(guessStr)
 	if err != nil || guess < 1 || guess > 100 {
-		conn.Privmsg(line.Nick, "That's not a number between 1 and 100 now is it...")
+		conn.Notice(line.Nick, "That's not a number between 1 and 100 now is it...")
 		return
 	}
 
 	g.triesLeft--
 	if g.triesLeft == 0 {
-		conn.Privmsgf(line.Nick, "You ran out of tries. The number was %d. You were %d off.", g.number, guess-g.number)
+		noticef(conn, line.Nick, "You ran out of tries. The number was %d. You were %d off.", g.number, abs(guess-g.number))
 		g.stop(conn, line)
 		return
 	}
@@ -95,6 +95,13 @@ func (g *guessingGame) play(conn *irc.Conn, line *irc.Line, args []string) {
 	} else if guess > g.number {
 		conn.Privmsgf(line.Nick, "%d is too high, you have %d tries left", guess, g.triesLeft)
 	} else if guess < g.number {
-		conn.Privmsgf(line.Nick, "%d is too low, you have %d tries left", guess, g.triesLeft)
+		noticef(conn, line.Nick, "%d is too low, you have %d tries left", guess, g.triesLeft)
 	}
+}
+
+func abs(i int) int {
+	if i < 0 {
+		return -i
+	}
+	return i
 }

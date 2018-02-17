@@ -5,7 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	irc "github.com/lfkeitel/goirc/client"
@@ -28,7 +31,7 @@ var (
 )
 
 func init() {
-	flag.StringVar(&ircServer, "s", "", "IRC server")
+	flag.StringVar(&ircServer, "s", "127.0.0.1", "IRC server")
 	flag.StringVar(&ircNick, "n", "gamerbot", "IRC nick")
 	flag.IntVar(&ircPort, "p", 6667, "IRC port")
 	flag.BoolVar(&ircUseTLS, "tls", false, "Use TLS")
@@ -72,9 +75,10 @@ func main() {
 	cfg.SASLPassword = saslPassword
 	c := irc.Client(cfg)
 
+	chans := strings.Split(ircChans, ",")
+
 	c.HandleFunc(irc.CONNECTED, func(conn *irc.Conn, line *irc.Line) {
 		fmt.Println("Connected to IRC server, joining channels")
-		chans := strings.Split(ircChans, ",")
 		for _, channel := range chans {
 			if channel[0] == '#' {
 				fmt.Printf("Joining %s\n", channel)
@@ -85,7 +89,7 @@ func main() {
 
 	quit := make(chan bool)
 	c.HandleFunc(irc.DISCONNECTED,
-		func(conn *irc.Conn, line *irc.Line) { quit <- true })
+		func(conn *irc.Conn, line *irc.Line) { close(quit) })
 
 	c.HandleFunc(irc.PRIVMSG, func(conn *irc.Conn, line *irc.Line) {
 		if debug {
@@ -99,12 +103,37 @@ func main() {
 		fmt.Printf("Connection error: %s\n", err.Error())
 	}
 
-	<-quit
+	shutdown := make(chan os.Signal, 1)
+	signal.Notify(shutdown, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
+
+	select {
+	case <-quit:
+		fmt.Println("Client disconnected from server")
+		return
+	case <-shutdown:
+		fmt.Println("Disconnecting from server")
+		for _, channel := range chans {
+			if channel[0] == '#' {
+				fmt.Printf("Leaving %s\n", channel)
+				c.Part(channel, "Bye, bye")
+			}
+		}
+		c.Quit("Bye everyone!")
+		<-time.After(1 * time.Second) // Give messages time to send
+		c.Close()
+	}
+
+	select {
+	case <-quit:
+		fmt.Println("Disconnected")
+	case <-time.After(5 * time.Second):
+		fmt.Println("Server took to long disconnecting")
+	}
 }
 
 func processMsg(conn *irc.Conn, line *irc.Line) {
 	if len(line.Args) < 2 {
-		conn.Privmsg(line.Nick, "Try '.help' instead.")
+		conn.Notice(line.Nick, "Try '.help' instead.")
 		return
 	}
 
@@ -128,7 +157,9 @@ func processMsg(conn *irc.Conn, line *irc.Line) {
 		recipient = line.Nick
 	}
 
-	fmt.Printf("%s %#v\n", cmd, args)
+	if debug {
+		fmt.Printf("%s %#v\n", cmd, args)
+	}
 
 	if strings.HasPrefix(cmd, ".hello") {
 		conn.Privmsgf(recipient, "Hi %s! Want to play a game?", line.Nick)
@@ -156,7 +187,7 @@ func processMsg(conn *irc.Conn, line *irc.Line) {
 		if hasActiveGame(line.Nick) {
 			getGame(line.Nick).play(conn, line, append([]string{cmd}, args...))
 		} else {
-			conn.Privmsg(recipient, "Try '.help' instead.")
+			conn.Notice(recipient, "Try '.help' instead.")
 		}
 	}
 }
@@ -165,45 +196,46 @@ func parseCommandLine(line string) []string {
 	return strings.Split(line, " ")
 }
 
+func noticef(conn *irc.Conn, t, f string, a ...interface{}) {
+	conn.Notice(t, fmt.Sprintf(f, a...))
+}
+
 func startGame(conn *irc.Conn, line *irc.Line, args []string) {
 	if hasActiveGame(line.Nick) {
-		conn.Privmsg(line.Nick, "You're already playing a game. Please stop your current game first.")
+		conn.Notice(line.Nick, "You're already playing a game. Please stop your current game first.")
 		return
 	}
 
 	if len(args) != 1 {
-		conn.Privmsg(line.Nick, "I need to know what game you want to play.")
-		conn.Privmsg(line.Nick, "Use the 'games' command to see what I have.")
+		conn.Notice(line.Nick, "I need to know what game you want to play.")
+		conn.Notice(line.Nick, "Use the 'games' command to see what I have.")
 		return
 	}
-
-	conn.Privmsg(line.Nick, "I always love a good game!")
-	fmt.Println(args[0])
 
 	switch args[0] {
 	case guessingGameID:
 		setGame(line.Nick, newGuessingGame())
 		getGame(line.Nick).start(conn, line)
 	default:
-		conn.Privmsg(line.Nick, "Use the 'games' command to see what I have.")
+		conn.Notice(line.Nick, "Use the 'games' command to see what I have.")
 	}
 	fmt.Printf("User %s started game %s\n", line.Nick, args[0])
 }
 
 func stopGame(conn *irc.Conn, line *irc.Line, args []string) {
 	if !hasActiveGame(line.Nick) {
-		conn.Privmsg(line.Nick, "You're not playing a game right now.")
+		conn.Notice(line.Nick, "You're not playing a game right now.")
 		return
 	}
 
 	if len(args) == 0 {
-		conn.Privmsg(line.Nick, "Are you sure you want to stop the game? Say '.stop y'.")
+		conn.Notice(line.Nick, "Are you sure you want to stop the game? Say '.stop y'.")
 		return
 	}
 
 	response := strings.ToLower(args[0])
 	if response == "y" || response == "yes" {
 		getGame(line.Nick).stop(conn, line)
-		conn.Privmsg(line.Nick, "I was just beginning to have fun...")
+		conn.Notice(line.Nick, "I was just beginning to have fun...")
 	}
 }
